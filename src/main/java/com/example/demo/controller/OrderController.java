@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 
+import com.example.demo.dto.ApiResponse;
 import com.example.demo.service.OrderService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,10 +19,10 @@ public class OrderController {
     }
 
     @PostMapping("/checkout")
-    public ResponseEntity<UUID> checkout(@RequestParam UUID userId,
-                                         @RequestParam UUID addressId,
-                                         @RequestParam UUID warehouseId) {
-        return ResponseEntity.ok(orderService.checkout(userId, addressId, warehouseId));
+    public ApiResponse<UUID> checkout(@RequestParam UUID userId,
+                                      @RequestParam UUID addressId,
+                                      @RequestParam UUID warehouseId) {
+        return orderService.checkout(userId, addressId, warehouseId);
     }
 
     @GetMapping("/{orderId}")

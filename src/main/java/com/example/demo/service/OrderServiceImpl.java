@@ -1,5 +1,6 @@
 package com.example.demo.service;
 
+import com.example.demo.dto.ApiResponse;
 import com.example.demo.entity.*;
 import com.example.demo.repository.*;
 import jakarta.transaction.Transactional;
@@ -37,7 +38,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public UUID checkout(UUID userId, UUID addressId, UUID warehouseId) {
+    public ApiResponse<UUID> checkout(UUID userId, UUID addressId, UUID warehouseId) {
 
         Cart cart = cartRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("Cart not found"));
@@ -101,7 +102,11 @@ public class OrderServiceImpl implements OrderService {
 
         cartItemRepository.deleteAll(cartItems);
 
-        return order.getOrderId();
+        return new ApiResponse<>(
+                true,
+                "Order placed successfully",
+                order.getOrderId()
+        );
     }
 
     @Override
