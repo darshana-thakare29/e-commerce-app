@@ -17,4 +17,9 @@ public class CategoryService {
     public List<Category> getAllCategories() {
         return categoryRepository.findAll();
     }
+
+	public Category saveCategory(Category category) {
+		// TODO Auto-generated method stub
+		return categoryRepository.save(category);
+	}
 }
