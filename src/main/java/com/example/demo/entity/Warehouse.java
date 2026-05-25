@@ -23,7 +23,6 @@ public class Warehouse {
 
     private String status;
 
-    // Getters and Setters
 
     public UUID getWarehouseId() {
         return warehouseId;

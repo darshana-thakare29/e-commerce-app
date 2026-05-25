@@ -22,10 +22,8 @@ public class ProductService {
 
     public Product saveProduct(Product product) {
 
-        // Save in PostgreSQL
         Product saved = productRepository.save(product);
 
-        // Convert to Elasticsearch document
         ProductDocument doc = new ProductDocument();
         doc.setId(saved.getProductId().toString());
         doc.setName(saved.getName());
@@ -33,7 +31,6 @@ public class ProductService {
         doc.setPrice(saved.getBasePrice());
         doc.setDescription(saved.getDescription());
 
-        // Save in Elasticsearch
         productSearchRepository.save(doc);
 
         return saved;

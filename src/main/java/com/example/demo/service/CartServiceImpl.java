@@ -46,8 +46,6 @@ public class CartServiceImpl implements CartService {
     @Override
     public CartView getCart(UUID userId) {
         Cart cart = getOrCreateCart(userId);
-        // If your CartView has fields, map cart + items here.
-        // For now, returning an empty CartView so compilation works with empty DTO classes.
         return new CartView();
     }
     @Override
@@ -216,8 +214,6 @@ public class CartServiceImpl implements CartService {
         Cart cart = getOrCreateCart(userId);
         List<CartItem> items = cartItemRepository.findByCartId(cart.getCartId());
 
-        // If your CartItemView has fields, map them here.
-        // For now, return same count with empty DTO objects.
         List<CartItemView> views = new ArrayList<>();
         for (CartItem ignored : items) {
             views.add(new CartItemView());
@@ -259,10 +255,6 @@ public class CartServiceImpl implements CartService {
         }
         touchCart(cart);
     }
-
-    // -------------------------
-    // Helpers
-    // -------------------------
 
     private Cart getOrCreateCart(UUID userId) {
         return cartRepository.findByUserId(userId)

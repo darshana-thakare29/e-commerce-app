@@ -19,7 +19,6 @@ public class OrderItem {
     private Integer quantity;
     private BigDecimal price;
 
-    // Getters and Setters
 
     public UUID getOrderItemId() {
         return orderItemId;

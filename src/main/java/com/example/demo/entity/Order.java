@@ -25,7 +25,6 @@ public class Order {
 
     private LocalDateTime createdAt;
 
-    // Getters and Setters
 
     public UUID getOrderId() {
         return orderId;

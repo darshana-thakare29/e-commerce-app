@@ -20,7 +20,6 @@ public class CartItem {
 
     private LocalDateTime addedAt;
 
-    // Getters and Setters
 
     public UUID getCartItemId() {
         return cartItemId;

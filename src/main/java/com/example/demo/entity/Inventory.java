@@ -22,7 +22,6 @@ public class Inventory {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    // Getters and Setters
 
     public UUID getInventoryId() {
         return inventoryId;

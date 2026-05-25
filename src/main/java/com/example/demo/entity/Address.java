@@ -25,7 +25,6 @@ public class Address {
 
     private String type;
 
-    // Getters and Setters
 
     public UUID getAddressId() {
         return addressId;
