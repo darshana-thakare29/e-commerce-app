@@ -45,7 +45,7 @@
 		</dependency>
 
 
-		<!-- ✅ Elasticsearch (FIX THIS ISSUE 🔥) -->
+		<!--  Elasticsearch  -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-elasticsearch</artifactId>
@@ -78,6 +78,11 @@
 			<artifactId>spring-security-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.springframework.kafka</groupId>
+			<artifactId>spring-kafka</artifactId>
+		</dependency>
+
 
 
 	</dependencies>
@@ -85,17 +90,23 @@
 	<build>
 		<plugins>
 
-			<!-- ✅ Spring Boot plugin -->
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
 
-			<!-- ✅ JaCoCo plugin (MOVE INSIDE plugins ✅) -->
+
 			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
-				<version>0.8.10</version>
+				<version>0.8.12</version>
+
+				<configuration>
+					<excludes>
+						<exclude>**/*$MockitoMock*</exclude>
+						<exclude>**/*$auxiliary*</exclude>
+					</excludes>
+				</configuration>
 
 				<executions>
 					<execution>

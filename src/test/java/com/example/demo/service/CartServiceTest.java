@@ -4,6 +4,7 @@ import com.example.demo.entity.Cart;
 import com.example.demo.entity.CartItem;
 import com.example.demo.repository.CartItemRepository;
 import com.example.demo.repository.CartRepository;
+import com.example.demo.repository.OrderRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -226,4 +227,154 @@ class CartServiceImplTest {
 
         verify(cartItemRepository).save(item);
     }
+
+    @Test
+    void testAddItem_newItem() {
+
+        UUID userId = UUID.randomUUID();
+        UUID variantId = UUID.randomUUID();
+
+        Cart cart = new Cart();
+        cart.setCartId(UUID.randomUUID());
+
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+        when(cartItemRepository.findByCartId(cart.getCartId())).thenReturn(List.of());
+
+        cartService.addItem(userId, variantId, 2);
+
+        verify(cartItemRepository).save(any());
+    }
+
+    @Test
+    void testUpdateItemQuantity_deleteCase() {
+
+        UUID userId = UUID.randomUUID();
+        UUID itemId = UUID.randomUUID();
+
+        Cart cart = new Cart();
+        cart.setCartId(UUID.randomUUID());
+
+        CartItem item = new CartItem();
+        item.setCartItemId(itemId);
+        item.setCartId(cart.getCartId());
+
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+        when(cartItemRepository.findById(itemId)).thenReturn(Optional.of(item));
+
+        cartService.updateItemQuantity(userId, itemId, 0);
+
+        verify(cartItemRepository).delete(item);
+    }
+    @Test
+    void testAddItem_cartNotFound() {
+
+        UUID userId = UUID.randomUUID();
+        UUID variantId = UUID.randomUUID();
+
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class,
+                () -> cartService.addItem(userId, variantId, 2));
+    }
+    @Test
+    void testUpdateItemQuantity_itemNotFound() {
+
+        UUID userId = UUID.randomUUID();
+        UUID itemId = UUID.randomUUID();
+
+        Cart cart = new Cart();
+        cart.setCartId(UUID.randomUUID());
+
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+        when(cartItemRepository.findById(itemId)).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class,
+                () -> cartService.updateItemQuantity(userId, itemId, 5));
+    }
+    @Test
+    void testAddItems_multipleCalls() {
+
+        UUID userId = UUID.randomUUID();
+
+        Cart cart = new Cart();
+        cart.setCartId(UUID.randomUUID());
+
+        var req = new com.example.demo.dto.AddCartItemRequest();
+        req.variantId = UUID.randomUUID();
+        req.quantity = 2;
+
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+        when(cartItemRepository.findByCartId(cart.getCartId())).thenReturn(List.of());
+
+        cartService.addItems(userId, List.of(req));
+        cartService.addItems(userId, List.of(req));
+
+        verify(cartItemRepository, atLeast(2)).save(any());
+    }
+
+    @Test
+    void testGetOrCreateCart_createsNewCart() {
+
+        UUID userId = UUID.randomUUID();
+
+        Cart savedCart = new Cart();
+        savedCart.setCartId(UUID.randomUUID());
+
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.empty());
+
+        when(cartRepository.save(any()))
+                .thenReturn(savedCart);
+        UUID result = cartService.getOrCreateCartId(userId);
+    }
+    @Test
+    void testRemoveItem_wrongCart() {
+
+        UUID userId = UUID.randomUUID();
+        UUID itemId = UUID.randomUUID();
+
+        Cart cart = new Cart();
+        cart.setCartId(UUID.randomUUID());
+
+        CartItem item = new CartItem();
+        item.setCartItemId(itemId);
+        item.setCartId(UUID.randomUUID());
+
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+        when(cartItemRepository.findById(itemId)).thenReturn(Optional.of(item));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> cartService.removeItem(userId, itemId));
+    }
+    @Test
+    void testClearCart_empty() {
+
+        UUID userId = UUID.randomUUID();
+
+        Cart cart = new Cart();
+        cart.setCartId(UUID.randomUUID());
+
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+        when(cartItemRepository.findByCartId(cart.getCartId()))
+                .thenReturn(List.of());
+
+        cartService.clearCart(userId);
+
+        verify(cartItemRepository, never()).deleteAll(any());
+    }
+    @Test
+    void testClearCart_withItems() {
+
+        UUID userId = UUID.randomUUID();
+
+        Cart cart = new Cart();
+        cart.setCartId(UUID.randomUUID());
+        CartItem item = new CartItem();
+
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+        when(cartItemRepository.findByCartId(cart.getCartId()))
+                .thenReturn(List.of(item));
+        cartService.clearCart(userId);
+        verify(cartItemRepository).deleteAll(any());
+    }
+
 }

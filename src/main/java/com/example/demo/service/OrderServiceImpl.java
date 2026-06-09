@@ -2,8 +2,11 @@ package com.example.demo.service;
 
 import com.example.demo.dto.ApiResponse;
 import com.example.demo.entity.*;
+import com.example.demo.kafka.event.OrderEvent;
+import com.example.demo.kafka.producer.OrderProducer;
 import com.example.demo.repository.*;
 import jakarta.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -22,6 +25,7 @@ public class OrderServiceImpl implements OrderService {
     private final PaymentRepository paymentRepository;
     private final InventoryRepository inventoryRepository;
 
+
     public OrderServiceImpl(OrderRepository orderRepository,
                             OrderItemRepository orderItemRepository,
                             CartRepository cartRepository,
@@ -37,6 +41,8 @@ public class OrderServiceImpl implements OrderService {
         this.inventoryRepository = inventoryRepository;
     }
 
+    @Autowired
+    private OrderProducer orderProducer;
     @Override
     public ApiResponse<UUID> checkout(UUID userId, UUID addressId, UUID warehouseId) {
 
@@ -48,6 +54,7 @@ public class OrderServiceImpl implements OrderService {
         if (cartItems.isEmpty()) {
             throw new RuntimeException("Cart is empty");
         }
+        String variantId = cartItems.get(0).getVariantId().toString();
 
         Order order = new Order();
         order.setOrderId(UUID.randomUUID());
@@ -99,6 +106,15 @@ public class OrderServiceImpl implements OrderService {
         payment.setAmount(total);
         payment.setStatus("PENDING");
         paymentRepository.save(payment);
+
+        OrderEvent event = new OrderEvent(
+                order.getOrderId().toString(),
+                userId.toString(),
+                total.doubleValue(),
+                "CREATED",variantId
+        );
+
+        orderProducer.sendOrder(event);
 
         cartItemRepository.deleteAll(cartItems);
 

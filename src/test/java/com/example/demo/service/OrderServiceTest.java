@@ -196,5 +196,176 @@ class OrderServiceImplTest {
                 () -> orderService.cancelOrder(orderId));
     }
 
+    @Test
+    void testCheckout_reservedQuantityAlreadyExists() {
 
+        UUID userId = UUID.randomUUID();
+
+        Cart cart = new Cart();
+        cart.setCartId(UUID.randomUUID());
+
+        CartItem item = new CartItem();
+        item.setVariantId(UUID.randomUUID());
+        item.setQuantity(2);
+
+        Inventory inventory = new Inventory();
+        inventory.setStockQuantity(10);
+        inventory.setReservedQuantity(5); // 🔥 NEW BRANCH
+
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+        when(cartItemRepository.findByCartId(cart.getCartId()))
+                .thenReturn(List.of(item));
+        when(inventoryRepository.findByVariantId(item.getVariantId()))
+                .thenReturn(Optional.of(inventory));
+
+        var response = orderService.checkout(userId, UUID.randomUUID(), UUID.randomUUID());
+
+        assertTrue(response.isSuccess());
+    }
+
+    @Test
+    void testCheckout_multipleItems() {
+
+        UUID userId = UUID.randomUUID();
+
+        Cart cart = new Cart();
+        cart.setCartId(UUID.randomUUID());
+
+        CartItem item1 = new CartItem();
+        item1.setVariantId(UUID.randomUUID());
+        item1.setQuantity(2);
+
+        CartItem item2 = new CartItem();
+        item2.setVariantId(UUID.randomUUID());
+        item2.setQuantity(3);
+
+        Inventory inventory = new Inventory();
+        inventory.setStockQuantity(10);
+        inventory.setReservedQuantity(0); // ✅ FIX
+
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+        when(cartItemRepository.findByCartId(cart.getCartId()))
+                .thenReturn(List.of(item1, item2));
+        when(inventoryRepository.findByVariantId(any()))
+                .thenReturn(Optional.of(inventory));
+
+        var response = orderService.checkout(userId, UUID.randomUUID(), UUID.randomUUID());
+
+        assertTrue(response.isSuccess());
+    }
+    @Test
+    void testCheckout_exactStockMatch() {
+
+        UUID userId = UUID.randomUUID();
+
+        Cart cart = new Cart();
+        cart.setCartId(UUID.randomUUID());
+
+        CartItem item = new CartItem();
+        item.setVariantId(UUID.randomUUID());
+        item.setQuantity(5);
+
+        Inventory inventory = new Inventory();
+        inventory.setStockQuantity(5);
+        inventory.setReservedQuantity(0); // exact match
+
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+        when(cartItemRepository.findByCartId(cart.getCartId()))
+                .thenReturn(List.of(item));
+        when(inventoryRepository.findByVariantId(item.getVariantId()))
+                .thenReturn(Optional.of(inventory));
+
+        var response = orderService.checkout(userId, UUID.randomUUID(), UUID.randomUUID());
+
+        assertTrue(response.isSuccess());
+    }
+    @Test
+    void testCheckout_differentInventoryPerItem() {
+
+        UUID userId = UUID.randomUUID();
+
+        Cart cart = new Cart();
+        cart.setCartId(UUID.randomUUID());
+
+        CartItem item1 = new CartItem();
+        item1.setVariantId(UUID.randomUUID());
+        item1.setQuantity(2);
+
+        CartItem item2 = new CartItem();
+        item2.setVariantId(UUID.randomUUID());
+        item2.setQuantity(1);
+
+        Inventory inv1 = new Inventory();
+        inv1.setStockQuantity(10);
+        inv1.setReservedQuantity(0);
+
+        Inventory inv2 = new Inventory();
+        inv2.setStockQuantity(5);
+        inv2.setReservedQuantity(0);
+
+        when(cartRepository.findByUserId(userId)).thenReturn(Optional.of(cart));
+        when(cartItemRepository.findByCartId(cart.getCartId()))
+                .thenReturn(List.of(item1, item2));
+
+        when(inventoryRepository.findByVariantId(item1.getVariantId()))
+                .thenReturn(Optional.of(inv1));
+        when(inventoryRepository.findByVariantId(item2.getVariantId()))
+                .thenReturn(Optional.of(inv2));
+
+        var response = orderService.checkout(userId, UUID.randomUUID(), UUID.randomUUID());
+
+        assertTrue(response.isSuccess());
+    }
+    @Test
+    void testCancelOrder_alreadyCancelled() {
+
+        UUID orderId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setOrderId(orderId);
+        order.setStatus("CANCELLED");
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        orderService.cancelOrder(orderId);
+
+        verify(orderRepository).save(order);
+    }
+    @Test
+    void testGetUserOrders_empty() {
+
+        UUID userId = UUID.randomUUID();
+
+        when(orderRepository.findByUserId(userId)).thenReturn(List.of());
+
+        var result = orderService.getUserOrders(userId);
+
+        assertTrue(result.isEmpty());
+    }
+    @Test
+    void testGetUserOrders_nullReturn() {
+
+        UUID userId = UUID.randomUUID();
+
+        when(orderRepository.findByUserId(userId)).thenReturn(null);
+
+        var result = orderService.getUserOrders(userId);
+
+        assertTrue(result == null || result.isEmpty());
+    }
+    @Test
+    void testCancelOrder_multipleCalls() {
+
+        UUID orderId = UUID.randomUUID();
+
+        Order order = new Order();
+        order.setOrderId(orderId);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+
+        orderService.cancelOrder(orderId);
+        orderService.cancelOrder(orderId);
+
+        verify(orderRepository, atLeast(2)).save(order);
+    }
 }
