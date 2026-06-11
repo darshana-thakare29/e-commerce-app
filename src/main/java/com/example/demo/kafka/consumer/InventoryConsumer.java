@@ -1,15 +1,18 @@
 package com.example.demo.kafka.consumer;
 
 import com.example.demo.entity.Inventory;
+import com.example.demo.entity.OrderItem;
 import com.example.demo.kafka.event.OrderEvent;
 import com.example.demo.kafka.topic.TopicNames;
 import com.example.demo.repository.InventoryRepository;
+import com.example.demo.repository.OrderItemRepository;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Optional;
+import java.util.List;
+import java.util.UUID;
 
 @Service
 public class InventoryConsumer {
@@ -17,9 +20,12 @@ public class InventoryConsumer {
     private static final Logger log = LoggerFactory.getLogger(InventoryConsumer.class);
 
     private final InventoryRepository inventoryRepository;
+    private final OrderItemRepository orderItemRepository;
 
-    public InventoryConsumer(InventoryRepository inventoryRepository) {
+    public InventoryConsumer(InventoryRepository inventoryRepository,
+                             OrderItemRepository orderItemRepository) {
         this.inventoryRepository = inventoryRepository;
+        this.orderItemRepository = orderItemRepository;
     }
     @KafkaListener(topics = TopicNames.ORDER_TOPIC)
     @org.springframework.retry.annotation.Retryable(
@@ -29,27 +35,28 @@ public class InventoryConsumer {
     )
     public void consume(OrderEvent event) {
 
-        try {
-            log.info("Inventory check for Order: {}", event.getOrderId());
+        UUID orderId = UUID.fromString(event.getOrderId());
 
-            Optional<Inventory> optionalInventory =
-                    inventoryRepository.findByVariantId(
-                            java.util.UUID.fromString(event.getVariantId())
-                    );
+        List<OrderItem> items =
+                orderItemRepository.findByOrderId(orderId);
 
-            if (optionalInventory.isPresent()) {
+        for (OrderItem item : items) {
 
-                Inventory inventory = optionalInventory.get();
+            Inventory inventory =
+                    inventoryRepository.findByVariantId(item.getVariantId())
+                            .orElseThrow(() -> new RuntimeException("Inventory not found"));
 
-                inventory.setStockQuantity(inventory.getStockQuantity() - 1);
-
-                inventoryRepository.save(inventory);
-
-                log.info("Inventory updated for Order: {}", event.getOrderId());
+            if (inventory.getStockQuantity() < item.getQuantity()) {
+                throw new RuntimeException("Out of stock for variant: " + item.getVariantId());
             }
-        } catch (Exception e){
-            log.error("Failed to process order after retries: {}", event.getOrderId());
-            throw e;
+
+            inventory.setReservedQuantity(
+                    inventory.getReservedQuantity() + item.getQuantity()
+            );
+
+            inventoryRepository.save(inventory);
         }
+
+        System.out.println("Inventory updated for order: " + event.getOrderId());
     }
 }

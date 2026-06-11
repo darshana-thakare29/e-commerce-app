@@ -22,23 +22,17 @@ public class OrderServiceImpl implements OrderService {
     private final OrderItemRepository orderItemRepository;
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
-    private final PaymentRepository paymentRepository;
-    private final InventoryRepository inventoryRepository;
 
 
     public OrderServiceImpl(OrderRepository orderRepository,
                             OrderItemRepository orderItemRepository,
                             CartRepository cartRepository,
-                            CartItemRepository cartItemRepository,
-                            PaymentRepository paymentRepository,
-                            InventoryRepository inventoryRepository) {
+                            CartItemRepository cartItemRepository) {
 
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
-        this.paymentRepository = paymentRepository;
-        this.inventoryRepository = inventoryRepository;
     }
 
     @Autowired
@@ -54,7 +48,6 @@ public class OrderServiceImpl implements OrderService {
         if (cartItems.isEmpty()) {
             throw new RuntimeException("Cart is empty");
         }
-        String variantId = cartItems.get(0).getVariantId().toString();
 
         Order order = new Order();
         order.setOrderId(UUID.randomUUID());
@@ -69,26 +62,13 @@ public class OrderServiceImpl implements OrderService {
 
         for (CartItem item : cartItems) {
 
-            Inventory inventory = inventoryRepository.findByVariantId(item.getVariantId())
-                    .orElseThrow(() -> new RuntimeException("Inventory not found"));
-
-            if (inventory.getStockQuantity() < item.getQuantity()) {
-                throw new RuntimeException("Out of stock");
-            }
-
-            inventory.setReservedQuantity(
-                    inventory.getReservedQuantity() + item.getQuantity()
-            );
-
-            inventoryRepository.save(inventory);
-
             OrderItem orderItem = new OrderItem();
             orderItem.setOrderItemId(UUID.randomUUID());
             orderItem.setOrderId(order.getOrderId());
             orderItem.setVariantId(item.getVariantId());
             orderItem.setQuantity(item.getQuantity());
 
-            BigDecimal price = BigDecimal.valueOf(100); // placeholder price
+            BigDecimal price = BigDecimal.valueOf(100);
             orderItem.setPrice(price);
 
             total = total.add(price.multiply(BigDecimal.valueOf(item.getQuantity())));
@@ -99,19 +79,12 @@ public class OrderServiceImpl implements OrderService {
         order.setTotalAmount(total);
         orderRepository.save(order);
 
-        Payment payment = new Payment();
-        payment.setPaymentId(UUID.randomUUID());
-        payment.setOrderId(order.getOrderId());
-        payment.setUserId(userId);
-        payment.setAmount(total);
-        payment.setStatus("PENDING");
-        paymentRepository.save(payment);
 
         OrderEvent event = new OrderEvent(
                 order.getOrderId().toString(),
                 userId.toString(),
                 total.doubleValue(),
-                "CREATED",variantId
+                "CREATED"
         );
 
         orderProducer.sendOrder(event);

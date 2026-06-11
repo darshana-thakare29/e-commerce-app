@@ -6,16 +6,14 @@ public class OrderEvent {
     private String userId;
     private double amount;
     private String status;
-    private String variantId;
 
     public OrderEvent() {}
 
-    public OrderEvent(String orderId, String userId, double amount, String status,String variantId) {
+    public OrderEvent(String orderId, String userId, double amount, String status) {
         this.orderId = orderId;
         this.userId = userId;
         this.amount = amount;
         this.status = status;
-        this.variantId = variantId;
     }
 
     public String getOrderId() {
@@ -48,13 +46,5 @@ public class OrderEvent {
 
     public void setStatus(String status) {
         this.status = status;
-    }
-
-    public String getVariantId() {
-        return variantId;
-    }
-
-    public void setVariantId(String variantId) {
-        this.variantId = variantId;
     }
 }
