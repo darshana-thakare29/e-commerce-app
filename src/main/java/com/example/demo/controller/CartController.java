@@ -1,5 +1,6 @@
 package com.example.demo.controller;
 import com.example.demo.dto.AddCartItemRequest;
+import com.example.demo.dto.AddProductToCartRequest;
 import com.example.demo.dto.CartItemView;
 import com.example.demo.dto.CartView;
 import com.example.demo.dto.SetCartItemRequest;
@@ -41,6 +42,11 @@ public class CartController {
     @PostMapping("/items")
     public ResponseEntity<CartView> addItem(@RequestParam UUID userId, @RequestBody AddCartItemRequest request) {
         return ResponseEntity.ok(cartService.addItem(userId, request.variantId, request.quantity));
+    }
+
+    @PostMapping("/products")
+    public ResponseEntity<CartView> addProduct(@RequestParam UUID userId, @RequestBody AddProductToCartRequest request) {
+        return ResponseEntity.ok(cartService.addProduct(userId, request.productId, request.quantity));
     }
 
     @PostMapping("/items/bulk")

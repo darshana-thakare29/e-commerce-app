@@ -3,8 +3,12 @@ package com.example.demo.service;
 import com.example.demo.dto.*;
 import com.example.demo.entity.Cart;
 import com.example.demo.entity.CartItem;
+import com.example.demo.entity.Product;
+import com.example.demo.entity.ProductDetails;
 import com.example.demo.repository.CartItemRepository;
 import com.example.demo.repository.CartRepository;
+import com.example.demo.repository.ProductDetailsRepository;
+import com.example.demo.repository.ProductRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -21,11 +25,17 @@ public class CartServiceImpl implements CartService {
 
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
+    private final ProductDetailsRepository productDetailsRepository;
+    private final ProductRepository productRepository;
 
     public CartServiceImpl(CartRepository cartRepository,
-                           CartItemRepository cartItemRepository) {
+                           CartItemRepository cartItemRepository,
+                           ProductDetailsRepository productDetailsRepository,
+                           ProductRepository productRepository) {
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
+        this.productDetailsRepository = productDetailsRepository;
+        this.productRepository = productRepository;
     }
 
     @Override
@@ -46,7 +56,7 @@ public class CartServiceImpl implements CartService {
     @Override
     public CartView getCart(UUID userId) {
         Cart cart = getOrCreateCart(userId);
-        return new CartView();
+        return toCartView(cart);
     }
     @Override
     public boolean cartExists(UUID userId) {
@@ -81,7 +91,16 @@ public class CartServiceImpl implements CartService {
         }
 
         touchCart(cart);
-        return new CartView();
+        return toCartView(cart);
+    }
+
+    @Override
+    public CartView addProduct(UUID userId, UUID productId, int quantity) {
+        ProductDetails variant = productDetailsRepository.findByProductProductId(productId)
+                .stream()
+                .findFirst()
+                .orElseGet(() -> createDefaultVariant(productId));
+        return addItem(userId, variant.getVariantId(), quantity);
     }
 
     @Override
@@ -115,7 +134,7 @@ public class CartServiceImpl implements CartService {
         }
 
         touchCart(cart);
-        return new CartView();
+        return toCartView(cart);
     }
 
     @Override
@@ -130,7 +149,7 @@ public class CartServiceImpl implements CartService {
         if (quantity <= 0) {
             existing.ifPresent(cartItemRepository::delete);
             touchCart(cart);
-            return new CartView();
+            return toCartView(cart);
         }
 
         if (existing.isPresent()) {
@@ -148,7 +167,7 @@ public class CartServiceImpl implements CartService {
         }
 
         touchCart(cart);
-        return new CartView();
+        return toCartView(cart);
     }
 
     @Override
@@ -164,7 +183,7 @@ public class CartServiceImpl implements CartService {
 
         cartItemRepository.delete(item);
         touchCart(cart);
-        return new CartView();
+        return toCartView(cart);
     }
 
     @Override
@@ -178,7 +197,7 @@ public class CartServiceImpl implements CartService {
                 .ifPresent(cartItemRepository::delete);
 
         touchCart(cart);
-        return new CartView();
+        return toCartView(cart);
     }
 
     @Override
@@ -215,10 +234,40 @@ public class CartServiceImpl implements CartService {
         List<CartItem> items = cartItemRepository.findByCartId(cart.getCartId());
 
         List<CartItemView> views = new ArrayList<>();
-        for (CartItem ignored : items) {
-            views.add(new CartItemView());
+        for (CartItem item : items) {
+            ProductDetails variant = productDetailsRepository.findById(item.getVariantId())
+                    .orElse(null);
+            if (variant == null) continue;
+
+            CartItemView view = new CartItemView();
+            view.setCartItemId(item.getCartItemId());
+            view.setVariantId(variant.getVariantId());
+            view.setProductId(variant.getProduct().getProductId());
+            view.setProductName(variant.getProduct().getName());
+            view.setBrand(variant.getProduct().getBrand());
+            view.setPrice(variant.getPrice());
+            view.setQuantity(item.getQuantity());
+            views.add(view);
         }
         return views;
+    }
+
+    private CartView toCartView(Cart cart) {
+        CartView view = new CartView();
+        view.setUserId(cart.getUserId());
+        view.setItems(listItems(cart.getUserId()));
+        return view;
+    }
+
+    private ProductDetails createDefaultVariant(UUID productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+        ProductDetails variant = new ProductDetails();
+        variant.setProduct(product);
+        variant.setSku("DEFAULT-" + productId);
+        variant.setPrice(product.getBasePrice() == null ? null : java.math.BigDecimal.valueOf(product.getBasePrice()));
+        variant.setStatus("ACTIVE");
+        return productDetailsRepository.save(variant);
     }
 
     @Override

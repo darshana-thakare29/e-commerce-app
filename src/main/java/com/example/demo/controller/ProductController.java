@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.document.ProductDocument;
+import com.example.demo.dto.ProductSummaryView;
 import com.example.demo.entity.Product;
 import com.example.demo.service.ProductService;
 
@@ -31,6 +32,11 @@ public class ProductController {
         return productService.saveProduct(product);
     }
 
+    @GetMapping()
+    public List<ProductSummaryView> getAll() {
+        return productService.getAllProducts();
+    }
+
     @GetMapping("/featured")
     public List<Product> featured() {
         return productService.getFeaturedProducts();
@@ -39,6 +45,11 @@ public class ProductController {
     @GetMapping("/{id}")
     public Product getById(@PathVariable UUID id) {
         return productService.getById(id);
+    }
+
+    @GetMapping("/{id}/summary")
+    public ProductSummaryView getSummaryById(@PathVariable UUID id) {
+        return productService.getProductSummaryById(id);
     }
 
     @PutMapping("/{id}")
@@ -63,9 +74,10 @@ public class ProductController {
 
         return productService.getProductsByCategory(categoryId);
     }
-    
-    @GetMapping("/search")
-    public List<ProductDocument> search(@RequestParam String q) {
-        return productService.searchProducts(q);
+    @GetMapping("/random")
+    public List<ProductSummaryView> getRandomProducts(
+            @RequestParam(defaultValue = "8") int limit) {
+
+        return productService.getRandomProducts(limit);
     }
 }

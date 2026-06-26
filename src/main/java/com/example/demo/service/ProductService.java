@@ -1,15 +1,18 @@
 package com.example.demo.service;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.example.demo.document.ProductDocument;
+import com.example.demo.dto.ProductSummaryView;
 import com.example.demo.entity.Product;
+import com.example.demo.entity.ProductDetails;
+import com.example.demo.repository.ProductDetailsRepository;
 import com.example.demo.repository.ProductRepository;
-import com.example.demo.repository.ProductSearchRepository;
 
 @Service
 public class ProductService {
@@ -17,22 +20,14 @@ public class ProductService {
     @Autowired
     private ProductRepository productRepository;
 
+    
+
     @Autowired
-    private ProductSearchRepository productSearchRepository;
+    private ProductDetailsRepository productDetailsRepository;
 
     public Product saveProduct(Product product) {
 
         Product saved = productRepository.save(product);
-
-        ProductDocument doc = new ProductDocument();
-        doc.setId(saved.getProductId().toString());
-        doc.setName(saved.getName());
-        doc.setBrand(saved.getBrand());
-        doc.setPrice(saved.getBasePrice());
-        doc.setDescription(saved.getDescription());
-
-        productSearchRepository.save(doc);
-
         return saved;
     }
 
@@ -42,6 +37,41 @@ public class ProductService {
 
     public Product getById(UUID id) {
         return productRepository.findById(id).orElseThrow();
+    }
+
+    public List<ProductSummaryView> getAllProducts() {
+        return productRepository.findAll().stream()
+                .map(this::mapToSummary)
+                .collect(Collectors.toList());
+    }
+
+    public ProductSummaryView getProductSummaryById(UUID id) {
+        Product product = getById(id);
+        return mapToSummary(product);
+    }
+
+    private ProductSummaryView mapToSummary(Product product) {
+        String imageUrl = findThumbnail(product);
+
+        return new ProductSummaryView(
+            product.getProductId(),
+            product.getName(),
+            product.getBrand(),
+            product.getBasePrice(),
+            product.getDescription(),
+            imageUrl
+        );
+    }
+
+    private String findThumbnail(Product product) {
+        List<ProductDetails> variants =
+                productDetailsRepository.findByProductProductId(product.getProductId());
+
+        if (!variants.isEmpty() && variants.get(0).getImageUrls() != null && !variants.get(0).getImageUrls().isEmpty()) {
+            return variants.get(0).getImageUrls().get(0);
+        }
+
+        return null;
     }
 
     public Product updateProduct(UUID id, Product updatedProduct) {
@@ -66,8 +96,14 @@ public class ProductService {
     public List<Product> getProductsByCategory(UUID categoryId) {
         return productRepository.findByCategory_CategoryId(categoryId);
     }
+    public List<ProductSummaryView> getRandomProducts(int limit) {
 
-    public List<ProductDocument> searchProducts(String keyword) {
-        return productSearchRepository.findByNameContaining(keyword);
+        List<ProductSummaryView> products = getAllProducts();
+
+        Collections.shuffle(products);
+
+        return products.stream()
+                .limit(limit)
+                .toList();
     }
 }

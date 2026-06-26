@@ -11,4 +11,5 @@ public interface ReviewRepository
 extends JpaRepository<Review, UUID> {
 
 List<Review> findTop5ByStatusOrderByCreatedAtDesc(String status);
+List<Review> findByProductProductIdAndStatusOrderByCreatedAtDesc(UUID productId, String status);
 }

@@ -27,36 +27,85 @@ public class InventoryConsumer {
         this.inventoryRepository = inventoryRepository;
         this.orderItemRepository = orderItemRepository;
     }
+
     @KafkaListener(topics = TopicNames.ORDER_TOPIC)
-    @org.springframework.retry.annotation.Retryable(
-            value = Exception.class,
-            maxAttempts = 3,
-            backoff = @org.springframework.retry.annotation.Backoff(delay = 2000)
-    )
     public void consume(OrderEvent event) {
 
         UUID orderId = UUID.fromString(event.getOrderId());
 
-        List<OrderItem> items =
-                orderItemRepository.findByOrderId(orderId);
+        List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
 
-        for (OrderItem item : items) {
+        switch (event.getStatus()) {
 
-            Inventory inventory =
-                    inventoryRepository.findByVariantId(item.getVariantId())
+            // ORDER CREATED → RESERVE STOCK
+            case "ORDER_CREATED":
+
+                for (OrderItem item : items) {
+
+                    Inventory inventory = inventoryRepository
+                            .findByVariantId(item.getVariantId())
                             .orElseThrow(() -> new RuntimeException("Inventory not found"));
 
-            if (inventory.getStockQuantity() < item.getQuantity()) {
-                throw new RuntimeException("Out of stock for variant: " + item.getVariantId());
-            }
+                    if (inventory.getStockQuantity() < item.getQuantity()) {
+                        throw new RuntimeException("Out of stock: " + item.getVariantId());
+                    }
 
-            inventory.setReservedQuantity(
-                    inventory.getReservedQuantity() + item.getQuantity()
-            );
+                    inventory.setReservedQuantity(
+                            inventory.getReservedQuantity() + item.getQuantity()
+                    );
 
-            inventoryRepository.save(inventory);
+                    inventoryRepository.save(inventory);
+                }
+
+                log.info("Stock RESERVED for order: {}", orderId);
+                break;
+
+            // PAYMENT SUCCESS → FINALIZE STOCK
+            case "PAYMENT_SUCCESS":
+
+                for (OrderItem item : items) {
+
+                    Inventory inventory = inventoryRepository
+                            .findByVariantId(item.getVariantId())
+                            .orElseThrow(() -> new RuntimeException("Inventory not found"));
+
+                    inventory.setStockQuantity(
+                            inventory.getStockQuantity() - item.getQuantity()
+                    );
+
+                    inventory.setReservedQuantity(
+                            inventory.getReservedQuantity() - item.getQuantity()
+                    );
+
+                    inventoryRepository.save(inventory);
+                }
+
+                log.info("Stock CONFIRMED for order: {}", orderId);
+                break;
+
+            // PAYMENT FAILED / CANCELLED → RELEASE STOCK
+            case "PAYMENT_FAILED":
+            case "ORDER_CANCELLED":
+
+                for (OrderItem item : items) {
+
+                    Inventory inventory = inventoryRepository
+                            .findByVariantId(item.getVariantId())
+                            .orElseThrow(() -> new RuntimeException("Inventory not found"));
+
+                    inventory.setReservedQuantity(
+                            inventory.getReservedQuantity() - item.getQuantity()
+                    );
+
+                    inventoryRepository.save(inventory);
+                }
+
+                log.info("Stock RELEASED for order: {}", orderId);
+                break;
+
+            default:
+                log.warn("Unknown event type: {}", event.getStatus());
+                throw new RuntimeException("Unknown event type: " + event.getStatus());
         }
-
-        System.out.println("Inventory updated for order: " + event.getOrderId());
     }
 }

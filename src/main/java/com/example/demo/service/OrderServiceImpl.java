@@ -1,6 +1,7 @@
 package com.example.demo.service;
 
 import com.example.demo.dto.ApiResponse;
+import com.example.demo.dto.CheckoutRequest;
 import com.example.demo.entity.*;
 import com.example.demo.kafka.event.OrderEvent;
 import com.example.demo.kafka.producer.OrderProducer;
@@ -22,17 +23,26 @@ public class OrderServiceImpl implements OrderService {
     private final OrderItemRepository orderItemRepository;
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
+    private final AddressRepository addressRepository;
+    private final WarehouseRepository warehouseRepository;
+    private final ProductDetailsRepository productDetailsRepository;
 
 
     public OrderServiceImpl(OrderRepository orderRepository,
                             OrderItemRepository orderItemRepository,
                             CartRepository cartRepository,
-                            CartItemRepository cartItemRepository) {
+                            CartItemRepository cartItemRepository,
+                            AddressRepository addressRepository,
+                            WarehouseRepository warehouseRepository,
+                            ProductDetailsRepository productDetailsRepository) {
 
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.cartRepository = cartRepository;
         this.cartItemRepository = cartItemRepository;
+        this.addressRepository = addressRepository;
+        this.warehouseRepository = warehouseRepository;
+        this.productDetailsRepository = productDetailsRepository;
     }
 
     @Autowired
@@ -68,7 +78,9 @@ public class OrderServiceImpl implements OrderService {
             orderItem.setVariantId(item.getVariantId());
             orderItem.setQuantity(item.getQuantity());
 
-            BigDecimal price = BigDecimal.valueOf(100);
+            BigDecimal price = productDetailsRepository.findById(item.getVariantId())
+                    .map(ProductDetails::getPrice)
+                    .orElseThrow(() -> new RuntimeException("Product variant not found"));
             orderItem.setPrice(price);
 
             total = total.add(price.multiply(BigDecimal.valueOf(item.getQuantity())));
@@ -96,6 +108,47 @@ public class OrderServiceImpl implements OrderService {
                 "Order placed successfully",
                 order.getOrderId()
         );
+    }
+
+    @Override
+    public ApiResponse<UUID> checkout(UUID userId, CheckoutRequest request) {
+        UUID addressId = request.getAddressId();
+        if (addressId == null) {
+            addressId = addressRepository.findByUserId(userId).stream()
+                    .findFirst().map(Address::getAddressId)
+                    .orElseGet(() -> createCheckoutAddress(userId));
+        }
+
+        UUID warehouseId = request.getWarehouseId();
+        if (warehouseId == null) {
+            warehouseId = warehouseRepository.findAll().stream()
+                    .findFirst().map(Warehouse::getWarehouseId)
+                    .orElseGet(this::createDefaultWarehouse);
+        }
+        return checkout(userId, addressId, warehouseId);
+    }
+
+    private UUID createCheckoutAddress(UUID userId) {
+        Address address = new Address();
+        address.setAddressId(UUID.randomUUID());
+        address.setUserId(userId);
+        address.setName("Online Customer");
+        address.setAddressLine("Address to be confirmed");
+        address.setCity("Online");
+        address.setState("Online");
+        address.setPincode(0);
+        address.setType("CHECKOUT");
+        return addressRepository.save(address).getAddressId();
+    }
+
+    private UUID createDefaultWarehouse() {
+        Warehouse warehouse = new Warehouse();
+        warehouse.setWarehouseId(UUID.nameUUIDFromBytes("default-checkout-warehouse".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        warehouse.setName("Default Warehouse");
+        warehouse.setCity("Online");
+        warehouse.setState("Online");
+        warehouse.setStatus("ACTIVE");
+        return warehouseRepository.save(warehouse).getWarehouseId();
     }
 
     @Override

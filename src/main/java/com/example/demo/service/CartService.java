@@ -22,6 +22,8 @@ public interface CartService {
 
     CartView addItem(UUID userId, UUID variantId, int quantity);
 
+    CartView addProduct(UUID userId, UUID productId, int quantity);
+
     CartView addItems(UUID userId, List<AddCartItemRequest> items);
 
     CartView updateItemQuantity(UUID userId, UUID cartItemId, int quantity);

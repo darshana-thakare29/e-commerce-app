@@ -12,4 +12,5 @@ extends JpaRepository<Product, UUID> {
 
 List<Product> findTop10ByStatus(String status);
 List<Product> findByCategory_CategoryId(UUID categoryId);
+List<Product> findByNameContainingIgnoreCase(String name);
 }
