@@ -17,7 +17,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import com.example.demo.security.JwtFilter;   // ✅ IMPORTANT
+import com.example.demo.security.JwtFilter;   // Ã¢Å“â€¦ IMPORTANT
 
 @Configuration
 @EnableWebSecurity
@@ -41,6 +41,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/api/products/**").permitAll()
+                        .requestMatchers("/offer-categories/**").permitAll()
+                        .requestMatchers("/offers/**").permitAll()
                         .requestMatchers("/profile/**").permitAll()
                         .anyRequest().authenticated()
                 )

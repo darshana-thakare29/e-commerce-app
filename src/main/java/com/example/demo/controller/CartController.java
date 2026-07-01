@@ -42,6 +42,7 @@ public class CartController {
     @PostMapping("/items")
     public ResponseEntity<CartView> addItem(@RequestParam UUID userId, @RequestBody AddCartItemRequest request) {
         return ResponseEntity.ok(cartService.addItem(userId, request.variantId, request.quantity));
+
     }
 
     @PostMapping("/products")
